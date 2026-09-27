@@ -1,0 +1,17 @@
+# Render Blueprint: deploys the agent API as a free web service.
+services:
+  - type: web
+    name: bright-smile-agent
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    # --proxy-headers: trust Render's proxy so request.client.host is the real visitor IP (for rate limiting)
+    startCommand: uvicorn server:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips '*'
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.14
+      - key: ANTHROPIC_API_KEY
+        sync: false   # secret: you enter it in the Render dashboard, never in git
+      - key: ALLOWED_ORIGINS
+        sync: false   # set to your website URL, e.g. https://bright-smile-site.onrender.com
