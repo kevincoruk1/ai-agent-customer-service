@@ -6,6 +6,7 @@ The agent logic lives in chatbot.py; this file is only the web "interface" to it
 Stage 4 will add a Twilio endpoint here that reuses the same run_turn().
 """
 
+import logging
 import os
 import time
 from collections import defaultdict, deque
@@ -29,6 +30,8 @@ MAX_SESSIONS = 1000        # caps memory; oldest session is dropped beyond this
 ALLOWED_ORIGINS = os.getenv(
     "ALLOWED_ORIGINS", "http://localhost:5500,http://127.0.0.1:5500"
 ).split(",")
+
+logger = logging.getLogger("uvicorn.error")  # reuse uvicorn's logger so messages show in Render Logs
 
 app = FastAPI()
 app.add_middleware(
@@ -94,7 +97,9 @@ def chat(req: ChatRequest, request: Request):
     system = SYSTEM_PROMPT.format(today=date.today().isoformat())
     try:
         reply = run_turn(messages, system)
-    except anthropic.APIError:
+    except anthropic.APIError as e:
+        # Log the real cause for us (visible in Render Logs); the visitor only sees a generic message
+        logger.error("Anthropic API error: %s: %s", type(e).__name__, e)
         # Drop the unanswered message so history stays valid (user/assistant must alternate)
         messages.pop()
         raise HTTPException(status_code=502, detail="The assistant is unavailable, please try again.")
